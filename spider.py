@@ -41,8 +41,7 @@ class CarsandBids(scrapy.Spider):
                     PageMethod("wait_for_selector", "//div[@class='quick-facts']"),
                 ]
             })
-            if n == 30:
-                break
+
 
 
     async def parse_car(self, response):
