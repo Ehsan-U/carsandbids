@@ -1,7 +1,9 @@
+import json
 import scrapy 
 from scrapy_playwright.page import PageMethod
-from utils import settings
+from utils import settings, playwright_args
 from scrapy.crawler import CrawlerProcess
+from scrapy import signals
 
 
 
@@ -13,41 +15,44 @@ class CarsandBids(scrapy.Spider):
 
     def start_requests(self):
         """ This method is called when the spider is opened for scraping. """
-
-        urls = ['https://carsandbids.com/?sort=listed']
-        for url in urls:
+        for query in self.queries:
+            page_no = 1
+            url = f'https://carsandbids.com/search?{query}'
             yield scrapy.Request(url, callback=self.parse_listing, errback=self.close_context_on_error, meta={
-                "playwright": True,
-                "playwright_context_kwargs": {
-                    "ignore_https_errors": True,
-                },
+                **playwright_args,
                 "playwright_page_methods":[
-                    PageMethod("wait_for_selector", "//ul[@class='auctions-list  ']"),
+                    PageMethod("wait_for_selector", "//ul[@class='auctions-list past-auctions show-all']"),
                 ]
-            })
+            }, cb_kwargs={"page_no": page_no, "source_url":url})
 
 
-    def parse_listing(self, response):
-        for n, car in enumerate(response.xpath("//div[@class='auction-title']/a/@href")):
+    async def parse_listing(self, response, page_no, source_url):
+        page = response.meta['playwright_page']
+        for n, car in enumerate(response.xpath("//ul[@class='auctions-list past-auctions show-all']//div[@class='auction-title']/a/@href")):
             url = car.get()
             yield response.follow(url, callback=self.parse_car, errback=self.close_context_on_error, meta={
-                "playwright": True,
-                "playwright_context": f'context_{n}',
-                "playwright_include_page": True,
-                "playwright_context_kwargs": {
-                    "ignore_https_errors": True,
-                },
+                **playwright_args,
                 "playwright_page_methods":[
                     PageMethod("wait_for_selector", "//div[@class='quick-facts']"),
                 ]
             })
-
+        next_disabled = await page.locator("//li[@class='arrow next']/button").is_disabled()
+        await page.close()
+        if not next_disabled:
+            self.logger.info(" [+] Next Page:")
+            page_no +=1
+            url = source_url + f"&page={str(page_no)}"
+            yield scrapy.Request(url, callback=self.parse_listing, errback=self.close_context_on_error, meta={
+                **playwright_args,
+                "playwright_page_methods":[
+                    PageMethod("wait_for_selector", "//ul[@class='auctions-list past-auctions show-all']"),
+                ]
+            }, cb_kwargs={"page_no": page_no, "source_url":source_url})
 
 
     async def parse_car(self, response):
         page = response.meta['playwright_page']
         await page.close()
-        await page.context.close()
         item = dict(
             year_make = self.get_title(response),
             model = self.get_value(response, 'Model'),
@@ -117,7 +122,19 @@ class CarsandBids(scrapy.Spider):
     async def close_context_on_error(self, failure):
         page = failure.request.meta["playwright_page"]
         await page.close()
-        await page.context.close()
+
+    
+    @classmethod
+    def from_crawler(cls, crawler, *args, **kwargs):
+        spider = super(CarsandBids, cls).from_crawler(crawler, *args, **kwargs)
+        crawler.signals.connect(spider.spider_opened, signal=signals.spider_opened)
+        return spider
+
+
+    def spider_opened(self, spider):
+        with open("config.json",'r') as f:
+            self.queries = json.load(f).get("queries")
+
 
 
 crawler = CrawlerProcess()
