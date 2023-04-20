@@ -23,8 +23,8 @@ settings = dict(
     #     "timeout": 60 * 1000,
     #     "proxy": {
     #         "server": "http://geo.iproyal.com:12321",
-    #         "username": "ehsan",
-    #         "password": "ehsan123123123_streaming-1",
+    #         "username": "user",
+    #         "password": "pass",
     #     },
     # },
     FEEDS = {"data/carsandbids.csv": {"format": "csv"}},
