@@ -19,19 +19,11 @@ settings = dict(
     PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT = 60000,
     PLAYWRIGHT_ABORT_REQUEST = request_should_abort,
     PLAYWRIGHT_BROWSER_TYPE = 'firefox',
-    # PLAYWRIGHT_LAUNCH_OPTIONS = {
-    #     "timeout": 60 * 1000,
-    #     "proxy": {
-    #         "server": "http://geo.iproyal.com:12321",
-    #         "username": "user",
-    #         "password": "pass",
-    #     },
-    # },
     FEEDS = {"data/carsandbids.csv": {"format": "csv"}},
     USER_AGENT = None,
     LOG_LEVEL='DEBUG',
-    # LOG_FILE='spider.log'
 )
+
 
 playwright_args = {
     "playwright": True,
